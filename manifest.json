@@ -1,7 +1,7 @@
 {
   "background_color": "#0d400c",
   "dir": "ltr",
-  "display": "standalone",
+  "display": "fullscreen",
   "name": "Cotizador FarmaSalud Contulmo",
   "orientation": "any",
   "scope": "/Cotizador-FarmaSalud-Contulmo/",
