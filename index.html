@@ -152,15 +152,35 @@
             });
         };
 
-        function procesarDatos(rawData) {
+function procesarDatos(rawData) {
             let tempProducts = [];
             let headerRowIndex = -1; 
+            let lastUpdateStr = "(Sin fecha detectada)";
             
-            for (let i = 0; i < Math.min(20, rawData.length); i++) {
-                if (rawData[i].includes("LAB") && rawData[i].includes("DETALLE")) { headerRowIndex = i; break; }
-            }
-            if(headerRowIndex === -1) headerRowIndex = 5;
+            // 1. Encontrar los encabezados y la fecha de actualización
+            for (let i = 0; i < Math.min(15, rawData.length); i++) {
+                if (!rawData[i]) continue;
 
+                // Buscar cualquier celda que contenga la palabra "Fecha" (Ej: "Fecha 06-11-2026...")
+                rawData[i].forEach(cell => {
+                    let textCell = String(cell).trim();
+                    if (textCell.toLowerCase().includes('fecha')) {
+                        lastUpdateStr = textCell;
+                    }
+                });
+
+                // Encontrar dónde empieza la tabla de productos (LAB y DETALLE)
+                let rowStr = rawData[i].map(c => String(c).toUpperCase());
+                if (rowStr.includes("LAB") && rowStr.includes("DETALLE")) { 
+                    headerRowIndex = i; 
+                    break; 
+                }
+            }
+            
+            // Si por alguna razón no encuentra los encabezados, asume la fila 6 (donde suele estar en tu POS)
+            if (headerRowIndex === -1) headerRowIndex = 6;
+
+            // 2. Procesar los productos
             for (let i = headerRowIndex + 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 if (!row || row.length < 8) continue;
@@ -169,11 +189,12 @@
                 let precio = parseInt(precioStr);
                 let stock = parseInt(row[10]) || 0;
                 let nombre = String(row[4]).trim();
+                let labName = String(row[0]).trim();
 
                 if (nombre && !isNaN(precio) && precio > 0) {
                     tempProducts.push({
                         id: btoa(unescape(encodeURIComponent(nombre))).substring(0, 15) + i,
-                        lab: row[0] || '',
+                        lab: labName,
                         nombre: nombre,
                         precio: precio,
                         disponible: stock > 0 
@@ -182,9 +203,33 @@
             }
 
             allProducts = tempProducts;
+
+            // 3. Extraer y ordenar laboratorios únicos para el selector
+            const labs = [...new Set(allProducts.map(p => p.lab).filter(l => l !== ''))].sort();
+            const labFilter = document.getElementById('labFilter');
+            
+            // Limpiamos las opciones por si se vuelve a llamar a la función
+            labFilter.innerHTML = '<option value="">Todos los laboratorios</option>';
+            labs.forEach(lab => {
+                const opt = document.createElement('option');
+                opt.value = lab;
+                opt.innerText = lab;
+                labFilter.appendChild(opt);
+            });
+
+            // 4. Mostrar la fecha de actualización detectada
+            const dateSpan = document.getElementById('fechaActualizacion');
+            if (dateSpan) {
+                dateSpan.innerText = lastUpdateStr;
+            }
+
+            // 5. Ocultar carga y habilitar controles
             document.getElementById('statusContainer').style.display = 'none';
             document.getElementById('resultsHeader').classList.remove('hidden');
             document.getElementById('searchInput').disabled = false;
+            document.getElementById('labFilter').disabled = false;
+            
+            // 6. Aplicar filtros iniciales
             applyFilters();
         }
 
