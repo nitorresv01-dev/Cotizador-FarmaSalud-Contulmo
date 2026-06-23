@@ -1,0 +1,14 @@
+{
+  "background_color": "#0d400c",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Cotizador FarmaSalud Contulmo",
+  "orientation": "any",
+  "scope": "/Cotizador-FarmaSalud-Contulmo/",
+  "short_name": "CotizadorContulmo",
+  "start_url": "/Cotizador-FarmaSalud-Contulmo/",
+  "theme_color": "#430937",
+  "id": "farmasalud",
+  "description": "¡Un cotizador de precios para Farmacia FarmaSalud Contulmo!",
+  "lang": "es"
+}
