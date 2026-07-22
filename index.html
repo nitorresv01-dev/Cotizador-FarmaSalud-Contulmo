@@ -9,6 +9,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
+    <!-- LIBRERÍA PARA LEER CÓDIGOS DE BARRAS -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
 
     <script>
         tailwind.config = { 
@@ -25,10 +28,15 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         #cartModal { transition: opacity 0.3s ease-in-out; }
         .modal-content { transition: transform 0.3s ease-in-out; }
+        
+        /* Ajustes para el escáner */
+        #reader { border-radius: 12px; overflow: hidden; }
+        #reader video { object-fit: cover; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen pb-24">
 
+    <!-- Header -->
     <header class="bg-white shadow-md sticky top-0 z-40">
         <div class="px-4 py-4 flex justify-between items-center max-w-7xl mx-auto w-full">
             <div class="flex items-center gap-3">
@@ -48,19 +56,23 @@
         </div>
     </header>
 
+    <!-- Hero Search -->
     <section class="bg-farmaPurple py-8 relative overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/20"></div>
         <div class="max-w-4xl mx-auto px-4 relative z-10 text-center">
             <h2 class="text-white text-2xl md:text-3xl font-extrabold mb-2">Cotizador de Precios</h2>
             <p class="text-purple-200 text-sm md:text-base font-medium">Busca tus medicamentos y calcula tu total al instante.</p>
             
+            <!-- Texto de stock y última actualización -->
             <div class="mt-2 mb-6 text-xs text-purple-300 flex flex-col md:flex-row justify-center items-center gap-1 md:gap-2">
                 <span><i class="fa-solid fa-clock mr-1"></i> La disponibilidad de stock se actualiza una vez al día.</span>
                 <span id="fechaActualizacion" class="font-bold text-white bg-white/20 px-2 py-0.5 rounded"></span>
             </div>
 
+            <!-- Caja de búsqueda y filtros -->
             <div class="bg-white p-2 rounded-2xl shadow-xl flex flex-col md:flex-row items-center gap-2">
                 
+                <!-- Filtro por Laboratorio -->
                 <div class="w-full md:w-1/3 flex items-center border-b md:border-b-0 md:border-r border-gray-100 px-2">
                     <i class="fa-solid fa-flask text-farmaPurple mr-2"></i>
                     <select id="labFilter" class="w-full py-3 bg-transparent text-gray-700 text-sm md:text-base outline-none cursor-pointer font-semibold appearance-none" disabled>
@@ -69,15 +81,22 @@
                     <i class="fa-solid fa-chevron-down text-gray-400 text-xs ml-2 pointer-events-none"></i>
                 </div>
 
-                <div class="w-full md:w-2/3 flex items-center px-2">
+                <!-- Búsqueda de texto y botón de escáner -->
+                <div class="w-full md:w-2/3 flex items-center px-2 relative">
                     <i class="fa-solid fa-magnifying-glass text-gray-400 text-xl mr-2"></i>
-                    <input type="text" id="searchInput" class="w-full py-3 text-base md:text-lg outline-none text-gray-700 bg-transparent placeholder-gray-400" placeholder="Ej: Paracetamol, Losartan..." autocomplete="off" disabled>
+                    <input type="text" id="searchInput" class="w-full py-3 pr-12 text-base md:text-lg outline-none text-gray-700 bg-transparent placeholder-gray-400" placeholder="Nombre, principio o código..." autocomplete="off" disabled>
+                    
+                    <!-- Botón Escáner -->
+                    <button onclick="startScanner()" class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-farmaGreen text-white w-10 h-10 rounded-xl hover:bg-green-600 shadow-md transition flex items-center justify-center">
+                        <i class="fa-solid fa-barcode text-lg"></i>
+                    </button>
                 </div>
 
             </div>
         </div>
     </section>
 
+    <!-- Main Content -->
     <main class="flex-grow w-full max-w-7xl mx-auto px-4 py-6">
         
         <div id="statusContainer" class="flex flex-col items-center justify-center text-gray-500 my-16 gap-3">
@@ -89,11 +108,14 @@
             <div class="text-sm text-gray-600 font-bold bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100" id="resultsCount"></div>
         </div>
 
+        <!-- Catálogo de Productos -->
         <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
         
+        <!-- Paginación -->
         <div id="pagination" class="flex justify-center items-center gap-2 mt-10 mb-8 flex-wrap"></div>
     </main>
 
+    <!-- Barra Flotante del Carrito -->
     <div id="floatingCart" class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-50 transform translate-y-full transition-transform duration-300">
         <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex flex-col">
@@ -106,6 +128,7 @@
         </div>
     </div>
 
+    <!-- Modal del Carrito -->
     <div id="cartModal" class="fixed inset-0 bg-black/60 z-[60] hidden opacity-0 flex justify-end">
         <div class="modal-content w-full md:w-[400px] bg-gray-50 h-full flex flex-col transform translate-x-full">
             <div class="bg-white px-5 py-4 flex justify-between items-center border-b border-gray-100 shadow-sm">
@@ -129,13 +152,24 @@
                         <i class="fa-brands fa-whatsapp text-lg"></i> Enviar a Farmacia
                     </button>
                 </div>
-                <p class="text-[10px] text-center text-gray-400 mt-3 font-semibold">* Los precios son referenciales y sujetos a disponibilidad física en el local.</p>
             </div>
         </div>
     </div>
 
+    <!-- Modal del Escáner de Código de Barras -->
+    <div id="scannerModal" class="fixed inset-0 bg-black/80 z-[70] hidden flex-col justify-center items-center backdrop-blur-sm">
+        <div class="bg-white p-5 rounded-2xl w-11/12 max-w-md relative shadow-2xl">
+            <button onclick="stopScanner()" class="absolute top-3 right-4 text-gray-400 hover:text-red-500 text-3xl font-bold z-10 leading-none">&times;</button>
+            <h3 class="text-lg font-bold text-farmaPurple mb-3 text-center"><i class="fa-solid fa-barcode mr-2"></i>Escanear Producto</h3>
+            
+            <div id="reader" class="w-full bg-black rounded-xl"></div>
+            
+            <p class="text-xs text-center text-gray-500 mt-4 font-semibold">Apunta la cámara de la tablet al código de barras. La búsqueda será automática.</p>
+        </div>
+    </div>
+
     <script>
-        // EL ENLACE DEL MAESTRO CON TRUCO ANTI-CACHÉ
+        // EL ENLACE DEL MAESTRO
         const URL_CSV_MAESTRO = "https://docs.google.com/spreadsheets/d/1GjVV8vuErPNmOIVkP-pk6VPiTrlf4IQby2v-OS0J3Zg/export?format=csv&gid=1307499139&nocache=" + new Date().getTime();
 
         let allProducts = [];
@@ -144,6 +178,7 @@
         let currentPage = 1;
         const itemsPerPage = 24;
         const clpFmt = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 });
+        let html5QrcodeScanner = null;
 
         window.onload = () => {
             document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; applyFilters(); });
@@ -162,11 +197,8 @@
             let headerRowIndex = -1; 
             let lastUpdateStr = "(Sin fecha detectada)";
             
-            // 1. Encontrar los encabezados y la fecha de actualización
             for (let i = 0; i < Math.min(15, rawData.length); i++) {
                 if (!rawData[i]) continue;
-
-                // Buscar cualquier celda que contenga la palabra "Fecha" (Ej: "Fecha 06-11-2026...")
                 rawData[i].forEach(cell => {
                     let textCell = String(cell).trim();
                     if (textCell.toLowerCase().includes('fecha')) {
@@ -174,7 +206,6 @@
                     }
                 });
 
-                // Encontrar dónde empieza la tabla de productos (LAB y DETALLE)
                 let rowStr = rawData[i].map(c => String(c).toUpperCase());
                 if (rowStr.includes("LAB") && rowStr.includes("DETALLE")) { 
                     headerRowIndex = i; 
@@ -182,10 +213,8 @@
                 }
             }
             
-            // Si por alguna razón no encuentra los encabezados, asume la fila 6
             if (headerRowIndex === -1) headerRowIndex = 6;
 
-            // 2. Procesar los productos
             for (let i = headerRowIndex + 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 if (!row || row.length < 8) continue;
@@ -195,6 +224,10 @@
                 let stock = parseInt(row[10]) || 0;
                 let nombre = String(row[4]).trim();
                 let labName = String(row[0]).trim();
+                
+                // Nuevas variables (Código de barras en Columna D, Principio en M)
+                let codigoBarras = row[3] ? String(row[3]).trim() : "";
+                let principioActivo = row[12] ? String(row[12]).trim() : "";
 
                 if (nombre && !isNaN(precio) && precio > 0) {
                     tempProducts.push({
@@ -202,6 +235,8 @@
                         lab: labName,
                         nombre: nombre,
                         precio: precio,
+                        principio: principioActivo,
+                        barcode: codigoBarras, // Guardamos el código de barras
                         disponible: stock > 0 
                     });
                 }
@@ -209,11 +244,9 @@
 
             allProducts = tempProducts;
 
-            // 3. Extraer y ordenar laboratorios únicos para el selector
             const labs = [...new Set(allProducts.map(p => p.lab).filter(l => l !== ''))].sort();
             const labFilter = document.getElementById('labFilter');
             
-            // Limpiamos las opciones por si se vuelve a llamar a la función
             labFilter.innerHTML = '<option value="">Todos los laboratorios</option>';
             labs.forEach(lab => {
                 const opt = document.createElement('option');
@@ -222,19 +255,14 @@
                 labFilter.appendChild(opt);
             });
 
-            // 4. Mostrar la fecha de actualización detectada
             const dateSpan = document.getElementById('fechaActualizacion');
-            if (dateSpan) {
-                dateSpan.innerText = lastUpdateStr;
-            }
+            if (dateSpan) dateSpan.innerText = lastUpdateStr;
 
-            // 5. Ocultar carga y habilitar controles
             document.getElementById('statusContainer').style.display = 'none';
             document.getElementById('resultsHeader').classList.remove('hidden');
             document.getElementById('searchInput').disabled = false;
             document.getElementById('labFilter').disabled = false;
             
-            // 6. Aplicar filtros iniciales
             applyFilters();
         }
 
@@ -243,7 +271,8 @@
             const selectedLab = document.getElementById('labFilter').value;
 
             filteredProducts = allProducts.filter(p => {
-                const searchable = `${p.nombre} ${p.lab}`.toLowerCase();
+                // Buscamos en Nombre, Laboratorio, Principio Activo Y Código de barras
+                const searchable = `${p.nombre} ${p.lab} ${p.principio} ${p.barcode}`.toLowerCase();
                 const textMatch = terms[0] === "" ? true : terms.every(t => searchable.includes(t));
                 const labMatch = selectedLab === "" ? true : p.lab === selectedLab;
                 return textMatch && labMatch;
@@ -300,7 +329,8 @@
                         <div class="text-[10px] font-black text-gray-400 uppercase tracking-wider">${item.lab}</div>
                         ${stockBadge}
                     </div>
-                    <h3 class="text-sm md:text-base font-bold text-gray-800 mb-3 leading-snug texto-ajustable flex-grow">${item.nombre}</h3>
+                    <h3 class="text-sm md:text-base font-bold text-gray-800 mb-1 leading-snug texto-ajustable">${item.nombre}</h3>
+                    <p class="text-xs text-gray-400 mb-3 font-medium italic flex-grow capitalize">${item.principio.toLowerCase()}</p>
                     <div class="text-2xl font-black text-farmaPurple leading-none">${clpFmt.format(item.precio)}</div>
                     ${btnHtml}
                 `;
@@ -310,10 +340,7 @@
             renderPagination(totalPages);
         }
 
-        function addToCart(id, nombre, precio) {
-            cart.push({ id, nombre, precio, cantidad: 1 });
-            updateCartUI(); renderPage(); 
-        }
+        function addToCart(id, nombre, precio) { cart.push({ id, nombre, precio, cantidad: 1 }); updateCartUI(); renderPage(); }
 
         function updateQty(id, change) {
             let itemIndex = cart.findIndex(c => c.id === id);
@@ -324,11 +351,7 @@
             updateCartUI(); renderPage(); renderCartModal(); 
         }
 
-        function clearCart() {
-            if(confirm("¿Deseas vaciar tu cotización?")) {
-                cart = []; updateCartUI(); renderPage(); toggleCart(); 
-            }
-        }
+        function clearCart() { if(confirm("¿Deseas vaciar tu cotización?")) { cart = []; updateCartUI(); renderPage(); toggleCart(); } }
 
         function updateCartUI() {
             const floatingCart = document.getElementById('floatingCart');
@@ -385,8 +408,7 @@
 
         function sendWhatsApp(phone) {
             if(cart.length === 0) return;
-            let total = 0;
-            let text = "Hola FarmaSalud! 👋%0AQuisiera consultar por la siguiente cotización:%0A%0A";
+            let total = 0; let text = "Hola FarmaSalud! 👋%0AQuisiera consultar por la siguiente cotización:%0A%0A";
             cart.forEach(item => {
                 let sub = item.precio * item.cantidad; total += sub;
                 text += `🔸 ${item.cantidad}x ${item.nombre} (${clpFmt.format(sub)})%0A`;
@@ -406,6 +428,51 @@
             container.appendChild(createBtn('<i class="fa-solid fa-chevron-left"></i>', currentPage === 1, () => { currentPage--; renderPage(); window.scrollTo(0, 0); }));
             const info = document.createElement('span'); info.className = "text-sm font-bold text-gray-600 px-4 bg-white py-2 rounded-xl border border-gray-100 shadow-sm"; info.innerText = `Pág ${currentPage} de ${totalPages}`; container.appendChild(info);
             container.appendChild(createBtn('<i class="fa-solid fa-chevron-right"></i>', currentPage === totalPages, () => { currentPage++; renderPage(); window.scrollTo(0, 0); }));
+        }
+
+        // ==========================================
+        // LÓGICA DEL ESCÁNER DE CÓDIGO DE BARRAS
+        // ==========================================
+        function startScanner() {
+            const modal = document.getElementById('scannerModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            
+            // Configuración de la cámara (Usa la cámara trasera por defecto)
+            const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+            
+            html5QrcodeScanner.start({ facingMode: "environment" }, config, 
+                (decodedText, decodedResult) => {
+                    // ¡Código encontrado!
+                    stopScanner();
+                    
+                    // Poner el código en el buscador y filtrar
+                    const searchInput = document.getElementById('searchInput');
+                    searchInput.value = decodedText;
+                    
+                    // Disparar el evento de búsqueda
+                    currentPage = 1;
+                    applyFilters();
+                },
+                (errorMessage) => {
+                    // Ignorar errores silenciosos mientras busca
+                }
+            ).catch(err => {
+                alert("Error al acceder a la cámara. Asegúrate de dar los permisos correspondientes.");
+                stopScanner();
+            });
+        }
+
+        function stopScanner() {
+            const modal = document.getElementById('scannerModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().catch(err => console.error("Error al detener cámara", err));
+            }
         }
     </script>
 </body>
