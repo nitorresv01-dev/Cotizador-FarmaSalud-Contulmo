@@ -164,12 +164,11 @@
             
             <div id="reader" class="w-full bg-black rounded-xl"></div>
             
-            <p class="text-xs text-center text-gray-500 mt-4 font-semibold">Apunta la cámara de la tablet al código de barras. La búsqueda será automática.</p>
+            <p class="text-xs text-center text-gray-500 mt-4 font-semibold">Apunta la cámara al código de barras. La búsqueda será automática.</p>
         </div>
     </div>
 
     <script>
-        // EL ENLACE DEL MAESTRO
         const URL_CSV_MAESTRO = "https://docs.google.com/spreadsheets/d/1GjVV8vuErPNmOIVkP-pk6VPiTrlf4IQby2v-OS0J3Zg/export?format=csv&gid=1307499139&nocache=" + new Date().getTime();
 
         let allProducts = [];
@@ -225,7 +224,7 @@
                 let nombre = String(row[4]).trim();
                 let labName = String(row[0]).trim();
                 
-                // Nuevas variables (Código de barras en Columna D, Principio en M)
+                // Lee el código de barras desde la Columna D (Índice 3) y el principio activo desde la M (Índice 12)
                 let codigoBarras = row[3] ? String(row[3]).trim() : "";
                 let principioActivo = row[12] ? String(row[12]).trim() : "";
 
@@ -236,7 +235,7 @@
                         nombre: nombre,
                         precio: precio,
                         principio: principioActivo,
-                        barcode: codigoBarras, // Guardamos el código de barras
+                        barcode: codigoBarras, 
                         disponible: stock > 0 
                     });
                 }
@@ -324,13 +323,17 @@
                     `;
                 }
 
+                // Aquí se agregó la etiqueta visible del código de barras
+                let barcodeDisplay = item.barcode ? `<div class="text-[10px] font-mono text-gray-400 mb-2 mt-auto"><i class="fa-solid fa-barcode"></i> ${item.barcode}</div>` : '';
+
                 card.innerHTML = `
                     <div class="flex justify-between items-start mb-2">
                         <div class="text-[10px] font-black text-gray-400 uppercase tracking-wider">${item.lab}</div>
                         ${stockBadge}
                     </div>
                     <h3 class="text-sm md:text-base font-bold text-gray-800 mb-1 leading-snug texto-ajustable">${item.nombre}</h3>
-                    <p class="text-xs text-gray-400 mb-3 font-medium italic flex-grow capitalize">${item.principio.toLowerCase()}</p>
+                    <p class="text-xs text-gray-400 mb-2 font-medium italic capitalize flex-grow">${item.principio.toLowerCase()}</p>
+                    ${barcodeDisplay}
                     <div class="text-2xl font-black text-farmaPurple leading-none">${clpFmt.format(item.precio)}</div>
                     ${btnHtml}
                 `;
@@ -440,19 +443,15 @@
 
             html5QrcodeScanner = new Html5Qrcode("reader");
             
-            // Configuración de la cámara (Usa la cámara trasera por defecto)
             const config = { fps: 10, qrbox: { width: 250, height: 150 } };
             
             html5QrcodeScanner.start({ facingMode: "environment" }, config, 
                 (decodedText, decodedResult) => {
-                    // ¡Código encontrado!
                     stopScanner();
                     
-                    // Poner el código en el buscador y filtrar
                     const searchInput = document.getElementById('searchInput');
                     searchInput.value = decodedText;
                     
-                    // Disparar el evento de búsqueda
                     currentPage = 1;
                     applyFilters();
                 },
