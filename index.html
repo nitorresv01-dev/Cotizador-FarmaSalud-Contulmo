@@ -75,12 +75,21 @@
 
                 <div class="w-full md:w-2/3 flex items-center px-2 relative">
                     <i class="fa-solid fa-magnifying-glass text-gray-400 text-xl mr-2"></i>
-                    <input type="text" id="searchInput" class="w-full py-3 pr-24 text-base md:text-lg outline-none text-gray-700 bg-transparent placeholder-gray-400" placeholder="Nombre, principio o código..." autocomplete="off" disabled>
+                    
+                    <!-- Aumenté el padding derecho (pr-36) para que quepan los 3 botones -->
+                    <input type="text" id="searchInput" class="w-full py-3 pr-36 text-base md:text-lg outline-none text-gray-700 bg-transparent placeholder-gray-400" placeholder="Nombre, síntoma o componente..." autocomplete="off" disabled>
                     
                     <div class="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
+                        
+                        <!-- NUEVO BOTÓN: Búsqueda Semántica IA -->
+                        <button onclick="smartAISearch()" class="bg-blue-500 text-white w-10 h-10 rounded-xl hover:bg-blue-600 shadow-md transition flex items-center justify-center" title="Búsqueda Inteligente (Componentes o Síntomas)">
+                            <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
+                        </button>
+
                         <button onclick="triggerAICamera()" class="bg-farmaPurple text-white w-10 h-10 rounded-xl hover:bg-purple-700 shadow-md transition flex items-center justify-center" title="Analizar caja con IA">
                             <i class="fa-solid fa-camera text-lg"></i>
                         </button>
+
                         <button onclick="startScanner()" class="bg-farmaGreen text-white w-10 h-10 rounded-xl hover:bg-green-600 shadow-md transition flex items-center justify-center" title="Escanear Código">
                             <i class="fa-solid fa-barcode text-lg"></i>
                         </button>
@@ -89,7 +98,7 @@
                 </div>
             </div>
 
-            <!-- Selector de Monodroga vs Compuestos -->
+            <!-- Selector Monodroga vs Compuestos -->
             <div class="mt-5 flex justify-center w-full relative z-20">
                 <div class="bg-black/20 p-1 rounded-xl flex inline-flex text-xs md:text-sm font-bold backdrop-blur-sm border border-white/10 shadow-inner">
                     <button id="btnFilterAll" onclick="setCompoundFilter('all')" class="px-3 md:px-5 py-2 rounded-lg bg-white text-farmaPurple shadow-sm transition-all duration-300">Todos</button>
@@ -184,8 +193,16 @@
         let html5QrcodeScanner = null;
         let compoundFilter = 'all'; 
 
+        // NUEVA VARIABLE GLOBAL PARA LA BÚSQUEDA SEMÁNTICA
+        let activeAISearchTerms = [];
+
         window.onload = () => {
-            document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; applyFilters(); });
+            document.getElementById('searchInput').addEventListener('input', () => { 
+                // Si el usuario vuelve a escribir a mano, limpiamos el filtro semántico de la IA
+                if(activeAISearchTerms.length > 0) activeAISearchTerms = [];
+                currentPage = 1; 
+                applyFilters(); 
+            });
             document.getElementById('labFilter').addEventListener('change', () => { currentPage = 1; applyFilters(); });
 
             Papa.parse(URL_CSV_MAESTRO, {
@@ -294,14 +311,26 @@
 
             filteredProducts = allProducts.filter(p => {
                 const searchable = `${p.nombre} ${p.lab} ${p.principio} ${p.barcode}`.toLowerCase();
-                const textMatch = terms[0] === "" ? true : terms.every(t => searchable.includes(t));
+                
+                // Lógica de coincidencia de texto (normal vs IA Semántica)
+                let textMatch = false;
+
+                if (activeAISearchTerms.length > 0) {
+                    // Si usamos la varita mágica, filtramos buscando si el nombre del producto incluye ALGUNA de las marcas que sugirió la IA
+                    textMatch = activeAISearchTerms.some(aiTerm => 
+                        p.nombre.toLowerCase().includes(aiTerm.toLowerCase()) || 
+                        p.principio.toLowerCase().includes(aiTerm.toLowerCase())
+                    );
+                } else {
+                    // Búsqueda normal manual
+                    textMatch = terms[0] === "" ? true : terms.every(t => searchable.includes(t));
+                }
+                
                 const labMatch = selectedLab === "" ? true : p.lab === selectedLab;
                 
                 let compoundMatch = true;
                 if (compoundFilter !== 'all') {
-                    // NUEVA FORMULA: Detecta guiones rodeados de espacio ( - ), comas, punto y coma, +, &, letras Y / E solas.
                     const isCompound = /[+\/;,&]|(\by\b)|(\be\b)|(\s-\s)/i.test(String(p.principio || ""));
-                    
                     if (compoundFilter === 'mono') compoundMatch = !isCompound;
                     if (compoundFilter === 'comp') compoundMatch = isCompound;
                 }
@@ -499,9 +528,70 @@
         // LÓGICA DE INTELIGENCIA ARTIFICIAL (GEMINI)
         // ==========================================
         
-        // ⚠️ RECUERDA: Parte tu llave en dos pedazos unidos con un '+'
-        const GEMINI_API_KEY = "AQ.Ab8RN6KZs-" + "NasdJEA3H0kCFyPEzLUC84R8nlZ0ecBgeJ3lwIWQ";
+        // ⚠️ TU LLAVE API LISTA PARA USAR ⚠️
+        const GEMINI_API_KEY = "AQ.Ab8RN6KZs-" + "NasdJEA3H0kCFyPEzLUC84R8nlZ0ecBgeJ3lwIWQ"; 
 
+        // ----------------------------------------------------
+        // NUEVA FUNCIÓN: Búsqueda Semántica Inteligente
+        // ----------------------------------------------------
+        async function smartAISearch() {
+            const input = document.getElementById('searchInput');
+            const query = input.value.trim();
+            
+            if(!query) {
+                alert("Escribe qué estás buscando primero (ej: 'Paracetamol Clorfenamina' o 'Para dolor de estómago').");
+                return;
+            }
+            if(!GEMINI_API_KEY) {
+                alert("La API Key no está configurada."); return;
+            }
+
+            const originalText = input.value;
+            input.value = "IA pensando...";
+            
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+            const payload = {
+                contents: [{
+                    parts: [{ 
+                        text: `Eres un experto farmacéutico en Chile. El cliente está buscando medicamentos que correspondan a esta descripción o principios activos: "${query}". Genera una lista de 10 a 15 nombres comerciales base de medicamentos (vendidos en Chile) que correspondan a esa descripción, contengan esos principios activos o sirvan para ese síntoma. Responde ÚNICAMENTE con un array JSON de strings en mayúsculas. No incluyas miligramos ni formatos, solo la marca comercial base (ejemplo: ["NASTIZOL", "TAPSIN", "TRIOVAL", "CORTAGRIP"]).` 
+                    }]
+                }]
+            };
+            
+            try {
+                const response = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert("Error de Google: " + data.error.message);
+                    input.value = originalText;
+                    return;
+                }
+                
+                if (data.candidates && data.candidates.length > 0) {
+                    let aiText = data.candidates[0].content.parts[0].text.trim().replace(/```json/gi, '').replace(/```/g, '').trim();
+                    try {
+                        activeAISearchTerms = JSON.parse(aiText);
+                        input.value = `💡 Buscando: ${originalText}`;
+                        currentPage = 1;
+                        applyFilters();
+                    } catch (e) {
+                        console.error("Error parseando resultados de IA:", e);
+                        alert("La IA devolvió un formato incorrecto.");
+                        input.value = originalText;
+                    }
+                }
+            } catch(e) { 
+                console.error(e); 
+                alert("Error de red al conectar con IA.");
+                input.value = originalText;
+            }
+        }
+
+
+        // ----------------------------------------------------
+        // LÓGICA DE LA CÁMARA (Para analizar cajas)
+        // ----------------------------------------------------
         function triggerAICamera() {
             document.getElementById('cameraInput').click();
         }
@@ -519,6 +609,9 @@
             closeAIModal();
             const searchInput = document.getElementById('searchInput');
             searchInput.value = selectedName;
+            
+            // Forzamos que se haga una búsqueda manual y no semántica
+            activeAISearchTerms = [];
             currentPage = 1;
             applyFilters();
         }
@@ -544,16 +637,16 @@
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
                     const base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-                    callGeminiAPI(base64Image);
+                    callGeminiCameraAPI(base64Image);
                 }
                 img.src = e.target.result;
             }
             reader.readAsDataURL(file);
         }
 
-        async function callGeminiAPI(base64Image) {
-            if(!GEMINI_API_KEY || GEMINI_API_KEY.includes("PON_AQUI")) {
-                alert("Primero debes ingresar tu API Key de Gemini en el código fuente (Línea 384).");
+        async function callGeminiCameraAPI(base64Image) {
+            if(!GEMINI_API_KEY) {
+                alert("Primero debes ingresar tu API Key de Gemini en el código fuente.");
                 document.getElementById('searchInput').value = "";
                 return;
             }
@@ -614,6 +707,7 @@
                         console.error("Error leyendo JSON de IA:", parseError);
                         const fallbackName = aiText.split(',')[0].replace(/[\[\]"]/g, '').trim();
                         document.getElementById('searchInput').value = fallbackName;
+                        activeAISearchTerms = [];
                         currentPage = 1;
                         applyFilters();
                     }
