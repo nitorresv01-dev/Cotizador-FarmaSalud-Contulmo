@@ -68,6 +68,7 @@
                 <span id="fechaActualizacion" class="font-bold text-white bg-white/20 px-2 py-0.5 rounded"></span>
             </div>
 
+            <!-- Caja principal de búsqueda -->
             <div class="bg-white p-2 rounded-2xl shadow-xl flex flex-col md:flex-row items-center gap-2">
                 
                 <div class="w-full md:w-1/3 flex items-center border-b md:border-b-0 md:border-r border-gray-100 px-2">
@@ -92,12 +93,19 @@
                             <i class="fa-solid fa-barcode text-lg"></i>
                         </button>
                     </div>
-
-                    <!-- Input oculto para la cámara -->
                     <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="processAIImage(event)">
                 </div>
-
             </div>
+
+            <!-- NUEVO: Selector de Monodroga vs Compuestos -->
+            <div class="mt-5 flex justify-center w-full relative z-20">
+                <div class="bg-black/20 p-1 rounded-xl flex inline-flex text-xs md:text-sm font-bold backdrop-blur-sm border border-white/10 shadow-inner">
+                    <button id="btnFilterAll" onclick="setCompoundFilter('all')" class="px-3 md:px-5 py-2 rounded-lg bg-white text-farmaPurple shadow-sm transition-all duration-300">Todos</button>
+                    <button id="btnFilterMono" onclick="setCompoundFilter('mono')" class="px-3 md:px-5 py-2 rounded-lg text-purple-100 hover:text-white hover:bg-white/10 transition-all duration-300">Solo Monodrogas</button>
+                    <button id="btnFilterComp" onclick="setCompoundFilter('comp')" class="px-3 md:px-5 py-2 rounded-lg text-purple-100 hover:text-white hover:bg-white/10 transition-all duration-300">Asociados (+)</button>
+                </div>
+            </div>
+
         </div>
     </section>
 
@@ -184,7 +192,9 @@
         let currentPage = 1;
         const itemsPerPage = 24;
         const clpFmt = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 });
+        
         let html5QrcodeScanner = null;
+        let compoundFilter = 'all'; // Estado del nuevo filtro: 'all', 'mono', 'comp'
 
         window.onload = () => {
             document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; applyFilters(); });
@@ -197,6 +207,32 @@
                 error: function() { document.getElementById('statusContainer').innerHTML = "<p class='text-red-500 font-bold'>Error al cargar el catálogo.</p>"; }
             });
         };
+
+        // NUEVO: Función para cambiar visualmente el botón seleccionado y aplicar el filtro
+        function setCompoundFilter(type) {
+            compoundFilter = type;
+            
+            const btnAll = document.getElementById('btnFilterAll');
+            const btnMono = document.getElementById('btnFilterMono');
+            const btnComp = document.getElementById('btnFilterComp');
+            
+            const activeClass = "bg-white text-farmaPurple shadow-sm".split(" ");
+            const inactiveClass = "text-purple-100 hover:text-white hover:bg-white/10".split(" ");
+            
+            // Reiniciar botones
+            [btnAll, btnMono, btnComp].forEach(btn => {
+                btn.classList.remove(...activeClass);
+                btn.classList.add(...inactiveClass);
+            });
+
+            // Activar el correspondiente
+            if(type === 'all') { btnAll.classList.remove(...inactiveClass); btnAll.classList.add(...activeClass); }
+            if(type === 'mono') { btnMono.classList.remove(...inactiveClass); btnMono.classList.add(...activeClass); }
+            if(type === 'comp') { btnComp.classList.remove(...inactiveClass); btnComp.classList.add(...activeClass); }
+
+            currentPage = 1;
+            applyFilters();
+        }
 
         function procesarDatos(rawData) {
             let tempProducts = [];
@@ -278,7 +314,18 @@
                 const searchable = `${p.nombre} ${p.lab} ${p.principio} ${p.barcode}`.toLowerCase();
                 const textMatch = terms[0] === "" ? true : terms.every(t => searchable.includes(t));
                 const labMatch = selectedLab === "" ? true : p.lab === selectedLab;
-                return textMatch && labMatch;
+                
+                // NUEVO: Lógica Matemática para detectar Asociaciones vs Monodrogas
+                let compoundMatch = true;
+                if (compoundFilter !== 'all') {
+                    // Esta fórmula (Regex) busca si el principio tiene +, /, ,, o la letra Y sola.
+                    const isCompound = /[+\/,]|(\by\b)/i.test(p.principio || "");
+                    
+                    if (compoundFilter === 'mono') compoundMatch = !isCompound;
+                    if (compoundFilter === 'comp') compoundMatch = isCompound;
+                }
+
+                return textMatch && labMatch && compoundMatch;
             });
 
             renderPage();
@@ -472,7 +519,7 @@
         // ==========================================
         
         // ⚠️ RECUERDA: Parte tu llave en dos pedazos unidos con un '+'
-        const GEMINI_API_KEY = "AQ.Ab8RN6KZs-" + "NasdJEA3H0kCFyPEzLUC84R8nlZ0ecBgeJ3lwIWQ"; 
+        const GEMINI_API_KEY = "AQ.Ab8RN6KZs-" + "NasdJEA3H0kCFyPEzLUC84R8nlZ0ecBgeJ3lwIWQ";
 
         function triggerAICamera() {
             document.getElementById('cameraInput').click();
@@ -525,14 +572,13 @@
 
         async function callGeminiAPI(base64Image) {
             if(!GEMINI_API_KEY || GEMINI_API_KEY.includes("PON_AQUI")) {
-                alert("Primero debes ingresar tu API Key de Gemini en el código fuente (Línea 349).");
+                alert("Primero debes ingresar tu API Key de Gemini en el código fuente (Línea 379).");
                 document.getElementById('searchInput').value = "";
                 return;
             }
 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-            // Instrucción actualizada: Acepta cosméticos, dermocosmética e insumos.
             const payload = {
                 contents: [{
                     parts: [
@@ -550,7 +596,6 @@
                 });
                 const data = await response.json();
                 
-                // Si Google arroja un error con tu llave, te lo mostrará en pantalla
                 if (data.error) {
                     alert("Error de Google: " + data.error.message);
                     document.getElementById('searchInput').value = "";
@@ -559,8 +604,6 @@
                 
                 if (data.candidates && data.candidates.length > 0) {
                     let aiText = data.candidates[0].content.parts[0].text.trim();
-                    
-                    // Limpieza del texto
                     aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
                     
                     try {
@@ -593,8 +636,6 @@
                         currentPage = 1;
                         applyFilters();
                     }
-
-                // Detecta si Google bloqueó la foto por filtros de seguridad
                 } else if (data.promptFeedback) {
                     alert("Google bloqueó el análisis de esta imagen por sus filtros de seguridad.");
                     document.getElementById('searchInput').value = "";
