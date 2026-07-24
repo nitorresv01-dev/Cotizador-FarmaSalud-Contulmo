@@ -9,8 +9,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    
-    <!-- LIBRERÍA PARA LEER CÓDIGOS DE BARRAS -->
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <script>
@@ -28,8 +26,6 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         #cartModal { transition: opacity 0.3s ease-in-out; }
         .modal-content { transition: transform 0.3s ease-in-out; }
-        
-        /* Ajustes para el escáner */
         #reader { border-radius: 12px; overflow: hidden; }
         #reader video { object-fit: cover; }
     </style>
@@ -68,9 +64,7 @@
                 <span id="fechaActualizacion" class="font-bold text-white bg-white/20 px-2 py-0.5 rounded"></span>
             </div>
 
-            <!-- Caja principal de búsqueda -->
             <div class="bg-white p-2 rounded-2xl shadow-xl flex flex-col md:flex-row items-center gap-2">
-                
                 <div class="w-full md:w-1/3 flex items-center border-b md:border-b-0 md:border-r border-gray-100 px-2">
                     <i class="fa-solid fa-flask text-farmaPurple mr-2"></i>
                     <select id="labFilter" class="w-full py-3 bg-transparent text-gray-700 text-sm md:text-base outline-none cursor-pointer font-semibold appearance-none" disabled>
@@ -84,11 +78,9 @@
                     <input type="text" id="searchInput" class="w-full py-3 pr-24 text-base md:text-lg outline-none text-gray-700 bg-transparent placeholder-gray-400" placeholder="Nombre, principio o código..." autocomplete="off" disabled>
                     
                     <div class="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                        <!-- Botón IA -->
                         <button onclick="triggerAICamera()" class="bg-farmaPurple text-white w-10 h-10 rounded-xl hover:bg-purple-700 shadow-md transition flex items-center justify-center" title="Analizar caja con IA">
                             <i class="fa-solid fa-camera text-lg"></i>
                         </button>
-                        <!-- Botón Escáner -->
                         <button onclick="startScanner()" class="bg-farmaGreen text-white w-10 h-10 rounded-xl hover:bg-green-600 shadow-md transition flex items-center justify-center" title="Escanear Código">
                             <i class="fa-solid fa-barcode text-lg"></i>
                         </button>
@@ -97,7 +89,7 @@
                 </div>
             </div>
 
-            <!-- NUEVO: Selector de Monodroga vs Compuestos -->
+            <!-- Selector de Monodroga vs Compuestos -->
             <div class="mt-5 flex justify-center w-full relative z-20">
                 <div class="bg-black/20 p-1 rounded-xl flex inline-flex text-xs md:text-sm font-bold backdrop-blur-sm border border-white/10 shadow-inner">
                     <button id="btnFilterAll" onclick="setCompoundFilter('all')" class="px-3 md:px-5 py-2 rounded-lg bg-white text-farmaPurple shadow-sm transition-all duration-300">Todos</button>
@@ -105,13 +97,11 @@
                     <button id="btnFilterComp" onclick="setCompoundFilter('comp')" class="px-3 md:px-5 py-2 rounded-lg text-purple-100 hover:text-white hover:bg-white/10 transition-all duration-300">Asociados (+)</button>
                 </div>
             </div>
-
         </div>
     </section>
 
     <!-- Main Content -->
     <main class="flex-grow w-full max-w-7xl mx-auto px-4 py-6">
-        
         <div id="statusContainer" class="flex flex-col items-center justify-center text-gray-500 my-16 gap-3">
             <div class="loader"></div>
             <span class="font-semibold text-base text-farmaPurple">Cargando catálogo actualizado...</span>
@@ -161,25 +151,23 @@
         </div>
     </div>
 
-    <!-- Modal del Escáner de Código de Barras -->
+    <!-- Modal del Escáner -->
     <div id="scannerModal" class="fixed inset-0 bg-black/80 z-[70] hidden flex-col justify-center items-center backdrop-blur-sm">
         <div class="bg-white p-5 rounded-2xl w-11/12 max-w-md relative shadow-2xl">
             <button onclick="stopScanner()" class="absolute top-3 right-4 text-gray-400 hover:text-red-500 text-3xl font-bold z-10 leading-none">&times;</button>
             <h3 class="text-lg font-bold text-farmaPurple mb-3 text-center"><i class="fa-solid fa-barcode mr-2"></i>Escanear Producto</h3>
             <div id="reader" class="w-full bg-black rounded-xl"></div>
-            <p class="text-xs text-center text-gray-500 mt-4 font-semibold">Apunta la cámara al código de barras. La búsqueda será automática.</p>
+            <p class="text-xs text-center text-gray-500 mt-4 font-semibold">Apunta la cámara al código de barras.</p>
         </div>
     </div>
 
-    <!-- Modal de Opciones de Inteligencia Artificial -->
+    <!-- Modal de Resultados IA -->
     <div id="aiModal" class="fixed inset-0 bg-black/80 z-[80] hidden flex-col justify-center items-center backdrop-blur-sm">
         <div class="bg-white p-6 rounded-2xl w-11/12 max-w-md relative shadow-2xl">
             <button onclick="closeAIModal()" class="absolute top-3 right-4 text-gray-400 hover:text-red-500 text-3xl font-bold z-10 leading-none">&times;</button>
             <h3 class="text-xl font-black text-farmaPurple mb-1 text-center"><i class="fa-solid fa-wand-magic-sparkles mr-2 text-farmaGreen"></i>Resultados IA</h3>
             <p class="text-sm text-center text-gray-500 font-semibold mb-5">Selecciona el nombre correcto del producto:</p>
-            <div id="aiSuggestionsList" class="flex flex-col gap-3">
-                <!-- Aquí se inyectarán los botones dinámicamente -->
-            </div>
+            <div id="aiSuggestionsList" class="flex flex-col gap-3"></div>
         </div>
     </div>
 
@@ -194,7 +182,7 @@
         const clpFmt = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 });
         
         let html5QrcodeScanner = null;
-        let compoundFilter = 'all'; // Estado del nuevo filtro: 'all', 'mono', 'comp'
+        let compoundFilter = 'all'; 
 
         window.onload = () => {
             document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; applyFilters(); });
@@ -208,7 +196,6 @@
             });
         };
 
-        // NUEVO: Función para cambiar visualmente el botón seleccionado y aplicar el filtro
         function setCompoundFilter(type) {
             compoundFilter = type;
             
@@ -219,13 +206,11 @@
             const activeClass = "bg-white text-farmaPurple shadow-sm".split(" ");
             const inactiveClass = "text-purple-100 hover:text-white hover:bg-white/10".split(" ");
             
-            // Reiniciar botones
             [btnAll, btnMono, btnComp].forEach(btn => {
                 btn.classList.remove(...activeClass);
                 btn.classList.add(...inactiveClass);
             });
 
-            // Activar el correspondiente
             if(type === 'all') { btnAll.classList.remove(...inactiveClass); btnAll.classList.add(...activeClass); }
             if(type === 'mono') { btnMono.classList.remove(...inactiveClass); btnMono.classList.add(...activeClass); }
             if(type === 'comp') { btnComp.classList.remove(...inactiveClass); btnComp.classList.add(...activeClass); }
@@ -247,14 +232,12 @@
                         lastUpdateStr = textCell;
                     }
                 });
-
                 let rowStr = rawData[i].map(c => String(c).toUpperCase());
                 if (rowStr.includes("LAB") && rowStr.includes("DETALLE")) { 
                     headerRowIndex = i; 
                     break; 
                 }
             }
-            
             if (headerRowIndex === -1) headerRowIndex = 6;
 
             for (let i = headerRowIndex + 1; i < rawData.length; i++) {
@@ -286,7 +269,6 @@
 
             const labs = [...new Set(allProducts.map(p => p.lab).filter(l => l !== ''))].sort();
             const labFilter = document.getElementById('labFilter');
-            
             labFilter.innerHTML = '<option value="">Todos los laboratorios</option>';
             labs.forEach(lab => {
                 const opt = document.createElement('option');
@@ -315,11 +297,10 @@
                 const textMatch = terms[0] === "" ? true : terms.every(t => searchable.includes(t));
                 const labMatch = selectedLab === "" ? true : p.lab === selectedLab;
                 
-                // NUEVO: Lógica Matemática para detectar Asociaciones vs Monodrogas
                 let compoundMatch = true;
                 if (compoundFilter !== 'all') {
-                    // Esta fórmula (Regex) busca si el principio tiene +, /, ,, o la letra Y sola.
-                    const isCompound = /[+\/,]|(\by\b)/i.test(p.principio || "");
+                    // NUEVA FORMULA: Detecta guiones rodeados de espacio ( - ), comas, punto y coma, +, &, letras Y / E solas.
+                    const isCompound = /[+\/;,&]|(\by\b)|(\be\b)|(\s-\s)/i.test(String(p.principio || ""));
                     
                     if (compoundFilter === 'mono') compoundMatch = !isCompound;
                     if (compoundFilter === 'comp') compoundMatch = isCompound;
@@ -572,7 +553,7 @@
 
         async function callGeminiAPI(base64Image) {
             if(!GEMINI_API_KEY || GEMINI_API_KEY.includes("PON_AQUI")) {
-                alert("Primero debes ingresar tu API Key de Gemini en el código fuente (Línea 379).");
+                alert("Primero debes ingresar tu API Key de Gemini en el código fuente (Línea 384).");
                 document.getElementById('searchInput').value = "";
                 return;
             }
